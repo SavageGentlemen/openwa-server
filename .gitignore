@@ -1,0 +1,7 @@
+node_modules/
+_IGNORE_session/
+logs/
+.git/
+*.log
+data.json
+session/

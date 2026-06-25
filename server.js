@@ -1,4 +1,41 @@
-const { create, ev } = require("@open-wa/wa-automate");
+const fs = require('fs');
+const path = require('path');
+
+// 1. Monkey-patch the node_modules to bypass the deprecated window.Debug check
+// This fixes the infinite 30s timeout issue in wa-automate caused by WhatsApp Web updates
+const patchInitializer = () => {
+  const targetPath = path.join(__dirname, 'node_modules', '@open-wa', 'wa-automate', 'dist', 'controllers', 'initializer.js');
+  if (fs.existsSync(targetPath)) {
+    let content = fs.readFileSync(targetPath, 'utf8');
+    
+    // Check if the check exists and replace it
+    const originalCheck = "yield waPage.waitForFunction('window.Debug!=undefined && window.Debug.VERSION!=undefined && require');";
+    const patchedCheck = "yield waPage.waitForFunction('window.require || window.webpackChunkwhatsapp_web_client');";
+    
+    if (content.includes(originalCheck)) {
+      content = content.replace(originalCheck, patchedCheck);
+      console.log("🩹 Patched waPage.waitForFunction check successfully!");
+    }
+
+    const originalVersionCheck = "const WA_VERSION = yield waPage.evaluate(() => window.Debug ? window.Debug.VERSION : 'I think you have been TOS_BLOCKed');";
+    const patchedVersionCheck = "const WA_VERSION = yield waPage.evaluate(() => window.Debug ? window.Debug.VERSION : (window.Debug = { VERSION: '2.3000.0' }).VERSION);";
+
+    if (content.includes(originalVersionCheck)) {
+      content = content.replace(originalVersionCheck, patchedVersionCheck);
+      console.log("🩹 Patched WA_VERSION evaluation successfully!");
+    }
+    
+    fs.writeFileSync(targetPath, content, 'utf8');
+  } else {
+    console.log("⚠️ Could not find initializer.js to patch. Skipping patch.");
+  }
+};
+
+// Run the patch before importing wa-automate!
+patchInitializer();
+
+// 2. Now import and run the rest of the application
+const { create } = require("@open-wa/wa-automate");
 
 const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.OPENWA_API_KEY || "secure_shared_secret";
