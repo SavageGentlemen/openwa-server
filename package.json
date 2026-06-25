@@ -1,0 +1,12 @@
+{
+  "name": "openwa-carnival-server",
+  "version": "1.0.0",
+  "description": "OpenWA WhatsApp API server for Carnival Planner",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@open-wa/wa-automate": "^4.73.0"
+  }
+}
