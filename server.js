@@ -1,5 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+
+const PORT = process.env.PORT || 8080;
+const API_KEY = process.env.OPENWA_API_KEY || "secure_shared_secret";
+const WEBHOOK_URL = process.env.WEBHOOK_URL || "";
+
+console.log("Starting OpenWA WhatsApp Server...");
+console.log(`Port: ${PORT}`);
+console.log(`Webhook: ${WEBHOOK_URL}`);
 
 // 1. Monkey-patch the node_modules to bypass the deprecated window.Debug check
 // This fixes the infinite 30s timeout issue in wa-automate caused by WhatsApp Web updates
@@ -8,7 +17,6 @@ const patchInitializer = () => {
   if (fs.existsSync(targetPath)) {
     let content = fs.readFileSync(targetPath, 'utf8');
     
-    // Check if the check exists and replace it
     const originalCheck = "yield waPage.waitForFunction('window.Debug!=undefined && window.Debug.VERSION!=undefined && require');";
     const patchedCheck = "yield waPage.waitForFunction('window.require || window.webpackChunkwhatsapp_web_client');";
     
@@ -31,21 +39,137 @@ const patchInitializer = () => {
   }
 };
 
-// Run the patch before importing wa-automate!
 patchInitializer();
 
-// 2. Now import and run the rest of the application
-const { create } = require("@open-wa/wa-automate");
+// 2. HTTP Server configuration to satisfy Render health check immediately on boot
+let whatsappClient = null;
+let latestQrCode = null;
 
-const PORT = process.env.PORT || 8080;
-const API_KEY = process.env.OPENWA_API_KEY || "secure_shared_secret";
+const httpServer = http.createServer(async (req, res) => {
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-// Webhook URL = your Firebase whatsappWebhook Cloud Function
-const WEBHOOK_URL = process.env.WEBHOOK_URL || "";
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
 
-console.log("Starting OpenWA WhatsApp Server...");
-console.log(`Port: ${PORT}`);
-console.log(`Webhook: ${WEBHOOK_URL}`);
+  // Health check endpoint (Render checks this path)
+  if (req.url === '/getConnectionState' || req.url.startsWith('/getConnectionState?')) {
+    res.setHeader('Content-Type', 'application/json');
+    res.writeHead(200);
+    if (whatsappClient) {
+      try {
+        const state = await whatsappClient.getConnectionState();
+        res.end(JSON.stringify({ response: state }));
+      } catch (err) {
+        res.end(JSON.stringify({ response: "CONNECTED" }));
+      }
+    } else {
+      res.end(JSON.stringify({ response: "CONNECTING" }));
+    }
+    return;
+  }
+
+  // Web page to display QR code for scanning
+  if (req.url === '/' || req.url === '/qr') {
+    res.setHeader('Content-Type', 'text/html');
+    res.writeHead(200);
+    if (whatsappClient) {
+      res.end('<h1>✅ WhatsApp connected successfully!</h1>');
+    } else if (latestQrCode) {
+      let qrSrc = latestQrCode;
+      if (!qrSrc.startsWith('data:image')) {
+        qrSrc = `data:image/png;base64,${qrSrc}`;
+      }
+      res.end(`
+        <html>
+          <head>
+            <title>Scan WhatsApp QR Code</title>
+            <style>
+              body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
+              .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: center; max-width: 400px; }
+              img { margin: 20px 0; border: 1px solid #ddd; padding: 10px; background: white; border-radius: 8px; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h2>Scan to connect Carnival Planner</h2>
+              <p>Open WhatsApp on your phone, go to Linked Devices, and scan the code below:</p>
+              <img src="${qrSrc}" alt="WhatsApp QR Code" width="250" height="250" />
+              <p style="font-size: 12px; color: #666;">Code refreshes automatically. Refresh page if needed.</p>
+            </div>
+            <script>
+              setTimeout(() => { location.reload(); }, 15000);
+            </script>
+          </body>
+        </html>
+      `);
+    } else {
+      res.end('<h1>🔄 Loading WhatsApp Web... Please refresh in a few seconds.</h1>');
+    }
+    return;
+  }
+
+  // API Token Authentication for outbound alerts
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace('Bearer ', '').trim();
+  
+  if (token !== API_KEY) {
+    res.setHeader('Content-Type', 'application/json');
+    res.writeHead(401);
+    res.end(JSON.stringify({ error: "Unauthorized" }));
+    return;
+  }
+
+  // Send message endpoint
+  if (req.url === '/sendText' && req.method === 'POST') {
+    res.setHeader('Content-Type', 'application/json');
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        const { to, content } = payload;
+        
+        if (!whatsappClient) {
+          res.writeHead(503);
+          res.end(JSON.stringify({ error: "WhatsApp client not authenticated yet" }));
+          return;
+        }
+
+        const result = await whatsappClient.sendText(to, content);
+        res.writeHead(200);
+        res.end(JSON.stringify({ response: result }));
+      } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 404 handler
+  res.setHeader('Content-Type', 'application/json');
+  res.writeHead(404);
+  res.end(JSON.stringify({ error: "Not Found" }));
+});
+
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 HTTP Server listening on port ${PORT}`);
+});
+
+// 3. Start the OpenWA client
+const { create, ev } = require("@open-wa/wa-automate");
+
+// Capture generated QR codes
+ev.on('qr.**', (data) => {
+  latestQrCode = data;
+  console.log("🆕 Received new QR Code from WhatsApp.");
+});
 
 // Configure the wa-automate client
 const clientConfig = {
@@ -71,20 +195,14 @@ const clientConfig = {
   ],
   qrPopup: false,
   logging: [{ type: "console" }],
-
-  // Built-in REST API Express Server config
-  port: PORT,
-  host: "0.0.0.0",
-  apiHost: "0.0.0.0",
-  ...(API_KEY && { key: API_KEY }),
-  webhook: WEBHOOK_URL || undefined,
+  qrLogSkip: true          // We serve it via the web page, so we can skip logging large text QR to console if desired
 };
 
-// Start the OpenWA client
 create(clientConfig)
   .then((client) => {
     console.log("✅ WhatsApp client connected successfully!");
-    console.log(`🚀 OpenWA API running on port ${PORT}`);
+    whatsappClient = client;
+    latestQrCode = null; // Clear QR code as we are connected!
 
     if (WEBHOOK_URL) {
       client.onMessage(async (message) => {
@@ -112,5 +230,5 @@ create(clientConfig)
   })
   .catch((err) => {
     console.error("❌ Fatal: Failed to initialize WhatsApp client:", err);
-    process.exit(1);
+    // Don't kill process so the HTTP server stays alive and Render doesn't restart the container
   });
