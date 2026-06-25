@@ -19,8 +19,8 @@ const clientConfig = {
   timeout: 120000,         // Increase Puppeteer timeout to 120s for slow containers
   pageTimeout: 120000,     // Increase page load timeout to 120s
   cacheEnabled: false,
-  useChrome: false,        // Use Chromium installed in Docker instead of looking for Chrome
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+  useChrome: true,         // Use Google Chrome
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome-stable",
   killProcessOnBrowserClose: true,
   throwErrorOnTosBlock: false,
   chromiumArgs: [
