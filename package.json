@@ -7,6 +7,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@open-wa/wa-automate": "^4.73.0"
+    "@open-wa/wa-automate": "latest"
   }
 }
