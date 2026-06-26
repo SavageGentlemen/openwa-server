@@ -40,6 +40,38 @@ const patchInitializer = () => {
       content = content.replace(originalSessionCheck, patchedSessionCheck);
       console.log("🩹 Patched VALID_SESSION timeout check successfully!");
     }
+
+    // Unconditionally set window.Store = {"Msg": true} to bypass the window.Store check in injectWapi
+    const originalStoreSet = "if (attemptingReauth)\n                    yield waPage.evaluate(`window.Store = {\"Msg\": true}`);";
+    const patchedStoreSet = "yield waPage.evaluate(`window.Store = {\"Msg\": true}`);";
+    
+    if (content.includes(originalStoreSet)) {
+      content = content.replace(originalStoreSet, patchedStoreSet);
+      console.log("🩹 Patched early window.Store injection successfully!");
+    } else {
+      // Try regex version just in case of newline mismatch
+      const regexStoreSet = /if\s*\(attemptingReauth\)\s*yield\s*waPage\.evaluate\(`window\.Store\s*=\s*\{"Msg":\s*true\}`\);/;
+      if (regexStoreSet.test(content)) {
+        content = content.replace(regexStoreSet, 'yield waPage.evaluate(`window.Store = {"Msg": true}`);');
+        console.log("🩹 Patched early window.Store injection via regex successfully!");
+      }
+    }
+
+    // Unconditionally clear window.Store and wait for ripe session when canInjectEarly is true
+    const originalStoreClear = 'if (attemptingReauth) {';
+    const patchedStoreClear = 'if (canInjectEarly) {';
+    
+    if (content.includes(originalStoreClear)) {
+      content = content.replace(originalStoreClear, patchedStoreClear);
+      console.log("🩹 Patched window.Store clear and ripe session check successfully!");
+    }
+
+    // Add page console logging patch
+    const regexConsoleLog = /waPage\s*=\s*yield\s*\(0\s*,\s*browser_1\.initPage\)\(sessionId,\s*config,\s*qrManager,\s*customUserAgent,\s*spinner\);\r?\n\s*spinner\.succeed\('Page loaded'\);/;
+    if (regexConsoleLog.test(content)) {
+      content = content.replace(regexConsoleLog, 'waPage = yield (0, browser_1.initPage)(sessionId, config, qrManager, customUserAgent, spinner);\n            waPage.on(\'console\', msg => console.log(`[Page Console] ${msg.text()}`));\n            waPage.on(\'pageerror\', err => console.error(`[Page Error] ${err.message}`));\n            spinner.succeed(\'Page loaded\');');
+      console.log("🩹 Patched page console logging successfully!");
+    }
     
     fs.writeFileSync(targetPath, content, 'utf8');
   } else {
@@ -67,11 +99,43 @@ const patchBrowser = () => {
   const targetPath = path.join(__dirname, 'node_modules', '@open-wa', 'wa-automate', 'dist', 'controllers', 'browser.js');
   if (fs.existsSync(targetPath)) {
     let content = fs.readFileSync(targetPath, 'utf8');
+    let modified = false;
+
     const originalCheck = "wapiInjected = !!(yield page.waitForFunction(check, { timeout: 3000, polling: 50 }).catch(e => false));";
     const patchedCheck = "wapiInjected = !!(yield page.waitForFunction(check, { timeout: 30000, polling: 50 }).catch(e => false));";
     if (content.includes(originalCheck)) {
       content = content.replace(originalCheck, patchedCheck);
       console.log("🩹 Patched wapiInjected timeout in browser.js successfully!");
+      modified = true;
+    }
+
+    const originalLaunch = "const launch = yield (0, tools_1.timePromise)(() => (0, exports.addScript)(page, 'launch.js'));";
+    const patchedLaunch = `const launch = yield (0, tools_1.timePromise)(() => (0, exports.addScript)(page, 'launch.js'));
+        yield page.evaluate(() => {
+          window.getQrPng = function() {
+            const canvas = document.querySelector("canvas[aria-label]") || document.querySelector("canvas");
+            if (!canvas) return false;
+            const parent = canvas.parentElement;
+            if (!parent) return false;
+            const qrText = parent.getAttribute("data-ref") || canvas.getAttribute("data-ref");
+            if (!qrText) return false;
+            try {
+              const qr = new window.QRCode({ content: qrText, width: 256, height: 256 });
+              const svg = qr.svg();
+              return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+            } catch (e) {
+              return false;
+            }
+          };
+        });`;
+        
+    if (content.includes(originalLaunch)) {
+      content = content.replace(originalLaunch, patchedLaunch);
+      console.log("🩹 Injected custom window.getQrPng definition patch in browser.js successfully!");
+      modified = true;
+    }
+
+    if (modified) {
       fs.writeFileSync(targetPath, content, 'utf8');
     }
   } else {
@@ -105,10 +169,27 @@ const patchWapi = () => {
   }
 };
 
+const patchAuth = () => {
+  const targetPath = path.join(__dirname, 'node_modules', '@open-wa', 'wa-automate', 'dist', 'controllers', 'auth.js');
+  if (fs.existsSync(targetPath)) {
+    let content = fs.readFileSync(targetPath, 'utf8');
+    
+    // Replace all polling: 'mutation' with polling: 100 to prevent Puppeteer hangs in headless mode
+    if (content.includes("polling: 'mutation'")) {
+      content = content.replace(/polling:\s*'mutation'/g, "polling: 100");
+      console.log("🩹 Patched all 'mutation' polling to 100ms in auth.js successfully!");
+      fs.writeFileSync(targetPath, content, 'utf8');
+    }
+  } else {
+    console.log("⚠️ Could not find auth.js to patch. Skipping auth patch.");
+  }
+};
+
 patchInitializer();
 patchPuppeteerConfig();
 patchBrowser();
 patchWapi();
+patchAuth();
 
 // 2. HTTP Server configuration to satisfy Render health check immediately on boot
 let whatsappClient = null;
