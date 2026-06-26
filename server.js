@@ -32,6 +32,14 @@ const patchInitializer = () => {
       content = content.replace(originalVersionCheck, patchedVersionCheck);
       console.log("🩹 Patched WA_VERSION evaluation successfully!");
     }
+
+    const originalSessionCheck = "{ timeout: 9000, polling: 200 }";
+    const patchedSessionCheck = "{ timeout: 120000, polling: 200 }";
+
+    if (content.includes(originalSessionCheck)) {
+      content = content.replace(originalSessionCheck, patchedSessionCheck);
+      console.log("🩹 Patched VALID_SESSION timeout check successfully!");
+    }
     
     fs.writeFileSync(targetPath, content, 'utf8');
   } else {
