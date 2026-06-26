@@ -63,8 +63,25 @@ const patchPuppeteerConfig = () => {
   }
 };
 
+const patchBrowser = () => {
+  const targetPath = path.join(__dirname, 'node_modules', '@open-wa', 'wa-automate', 'dist', 'controllers', 'browser.js');
+  if (fs.existsSync(targetPath)) {
+    let content = fs.readFileSync(targetPath, 'utf8');
+    const originalCheck = "wapiInjected = !!(yield page.waitForFunction(check, { timeout: 3000, polling: 50 }).catch(e => false));";
+    const patchedCheck = "wapiInjected = !!(yield page.waitForFunction(check, { timeout: 30000, polling: 50 }).catch(e => false));";
+    if (content.includes(originalCheck)) {
+      content = content.replace(originalCheck, patchedCheck);
+      console.log("🩹 Patched wapiInjected timeout in browser.js successfully!");
+      fs.writeFileSync(targetPath, content, 'utf8');
+    }
+  } else {
+    console.log("⚠️ Could not find browser.js to patch. Skipping browser patch.");
+  }
+};
+
 patchInitializer();
 patchPuppeteerConfig();
+patchBrowser();
 
 // 2. HTTP Server configuration to satisfy Render health check immediately on boot
 let whatsappClient = null;
