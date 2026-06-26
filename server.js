@@ -39,7 +39,24 @@ const patchInitializer = () => {
   }
 };
 
+const patchPuppeteerConfig = () => {
+  const targetPath = path.join(__dirname, 'node_modules', '@open-wa', 'wa-automate', 'dist', 'config', 'puppeteer.config.js');
+  if (fs.existsSync(targetPath)) {
+    let content = fs.readFileSync(targetPath, 'utf8');
+    const originalUA = "exports.useragent = (0, exports.createUserAgent)('2.2147.16');";
+    const patchedUA = "exports.useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36';";
+    if (content.includes(originalUA)) {
+      content = content.replace(originalUA, patchedUA);
+      console.log("🩹 Patched useragent in puppeteer.config.js successfully!");
+      fs.writeFileSync(targetPath, content, 'utf8');
+    }
+  } else {
+    console.log("⚠️ Could not find puppeteer.config.js to patch. Skipping UA patch.");
+  }
+};
+
 patchInitializer();
+patchPuppeteerConfig();
 
 // 2. HTTP Server configuration to satisfy Render health check immediately on boot
 let whatsappClient = null;
@@ -186,7 +203,7 @@ const clientConfig = {
   pageTimeout: 120000,     // Increase page load timeout to 120s
   cacheEnabled: false,
   useChrome: true,         // Use Google Chrome
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome-stable",
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (process.platform === 'win32' ? undefined : "/usr/bin/google-chrome-stable"),
   killProcessOnBrowserClose: true,
   throwErrorOnTosBlock: false,
   chromiumArgs: [
