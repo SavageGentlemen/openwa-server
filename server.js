@@ -79,9 +79,36 @@ const patchBrowser = () => {
   }
 };
 
+const patchWapi = () => {
+  const targetPath = path.join(__dirname, 'node_modules', '@open-wa', 'wa-automate', 'dist', 'lib', 'wapi.js');
+  if (fs.existsSync(targetPath)) {
+    let content = fs.readFileSync(targetPath, 'utf8');
+    const originalCheck = "if (!contact || !contact.isMyContact) return 'Not a contact';";
+    const originalFind = "await Store.Chat.find(Store.Contact.get(id).id)";
+    
+    let modified = false;
+    if (content.includes(originalCheck)) {
+      content = content.replace(originalCheck, "/* patched contact check */");
+      modified = true;
+    }
+    if (content.includes(originalFind)) {
+      content = content.replace(originalFind, "await Store.Chat.find(new Store.WidFactory.createWid(id))");
+      modified = true;
+    }
+    
+    if (modified) {
+      console.log("🩹 Patched wapi.js contact check successfully!");
+      fs.writeFileSync(targetPath, content, 'utf8');
+    }
+  } else {
+    console.log("⚠️ Could not find wapi.js to patch. Skipping WAPI patch.");
+  }
+};
+
 patchInitializer();
 patchPuppeteerConfig();
 patchBrowser();
+patchWapi();
 
 // 2. HTTP Server configuration to satisfy Render health check immediately on boot
 let whatsappClient = null;
