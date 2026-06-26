@@ -166,9 +166,14 @@ httpServer.listen(PORT, '0.0.0.0', () => {
 const { create, ev } = require("@open-wa/wa-automate");
 
 // Capture generated QR codes
+ev.on('qr.session', (data) => {
+  latestQrCode = data;
+  console.log("🆕 Received new QR Code from WhatsApp (qr.session).");
+});
+
 ev.on('qr.**', (data) => {
   latestQrCode = data;
-  console.log("🆕 Received new QR Code from WhatsApp.");
+  console.log("🆕 Received new QR Code from WhatsApp (qr.**).");
 });
 
 // Configure the wa-automate client
