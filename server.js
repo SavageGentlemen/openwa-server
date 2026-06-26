@@ -258,15 +258,6 @@ const clientConfig = {
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (process.platform === 'win32' ? undefined : "/usr/bin/google-chrome-stable"),
   killProcessOnBrowserClose: true,
   throwErrorOnTosBlock: false,
-  chromiumArgs: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--no-first-run",
-    "--no-zygote",
-    "--single-process"
-  ],
   qrPopup: false,
   logging: [{ type: "console" }],
   qrLogSkip: true          // We serve it via the web page, so we can skip logging large text QR to console if desired
