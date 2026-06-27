@@ -345,7 +345,17 @@ const clientConfig = {
   throwErrorOnTosBlock: false,
   qrPopup: false,
   logging: [{ type: "console" }],
-  qrLogSkip: true          // We serve it via the web page, so we can skip logging large text QR to console if desired
+  qrLogSkip: true,          // We serve it via the web page, so we can skip logging large text QR to console if desired
+  chromiumArgs: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--js-flags=--max-old-space-size=256",
+    "--no-first-run",
+    "--no-zygote",
+    "--single-process"
+  ]
 };
 
 create(clientConfig)
