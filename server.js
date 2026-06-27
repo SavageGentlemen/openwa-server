@@ -12,6 +12,55 @@ console.log(`Webhook: ${WEBHOOK_URL}`);
 
 // Verify persistent session directory write permissions
 const sessionDir = "/app/session";
+const localUserDataDir = "/app/_IGNORE_session";
+const persistentTarball = "/app/session/session.tar.gz";
+
+// Restore Chrome profile from persistent storage on startup
+const restoreProfile = () => {
+  if (fs.existsSync(persistentTarball)) {
+    try {
+      console.log("📦 Restoring Chrome profile from persistent storage...");
+      if (!fs.existsSync(path.dirname(localUserDataDir))) {
+        fs.mkdirSync(path.dirname(localUserDataDir), { recursive: true });
+      }
+      const { execSync } = require('child_process');
+      execSync(`tar -xzf ${persistentTarball} -C /`);
+      console.log("✅ Chrome profile restored successfully!");
+    } catch (err) {
+      console.error("⚠️ Failed to restore Chrome profile:", err.message);
+    }
+  } else {
+    console.log("ℹ️ No persistent Chrome profile tarball found to restore.");
+  }
+};
+
+// Backup Chrome profile to persistent storage
+const backupProfile = () => {
+  try {
+    if (fs.existsSync(localUserDataDir)) {
+      console.log("💾 Backing up Chrome profile to persistent disk...");
+      const tarballDir = path.dirname(persistentTarball);
+      if (!fs.existsSync(tarballDir)) {
+        fs.mkdirSync(tarballDir, { recursive: true });
+      }
+      const { execSync } = require('child_process');
+      // Clean up stale lock files before compressing to prevent locks persisting in tarball
+      const lockPath = path.join(localUserDataDir, 'SingletonLock');
+      if (fs.existsSync(lockPath)) {
+        try {
+          fs.unlinkSync(lockPath);
+        } catch (e) {}
+      }
+      execSync(`tar -czf ${persistentTarball} ${localUserDataDir}`);
+      console.log("✅ Chrome profile backed up successfully!");
+    } else {
+      console.log("ℹ️ Local Chrome profile directory does not exist yet. Skipping backup.");
+    }
+  } catch (err) {
+    console.error("⚠️ Failed to back up Chrome profile:", err.message);
+  }
+};
+
 try {
   if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
@@ -20,7 +69,10 @@ try {
   fs.unlinkSync(path.join(sessionDir, '.write-test'));
   console.log(`📁 Persistent session directory ${sessionDir} is fully writable!`);
 
-  // Clean up any stale Chrome locks in the persistent volume
+  // Restore session profile from persistent storage if it exists
+  restoreProfile();
+
+  // Clean up any stale Chrome locks locally (just in case)
   const deleteSingletonLock = (dir) => {
     const lockPath = path.join(dir, 'SingletonLock');
     if (fs.existsSync(lockPath)) {
@@ -41,7 +93,9 @@ try {
       }
     } catch (err) {}
   };
-  deleteSingletonLock(sessionDir);
+  if (fs.existsSync(localUserDataDir)) {
+    deleteSingletonLock(localUserDataDir);
+  }
 
 } catch (err) {
   console.error(`⚠️ Persistent session directory ${sessionDir} is NOT writable:`, err.message);
@@ -407,6 +461,12 @@ create(clientConfig)
     whatsappClient = client;
     latestQrCode = null; // Clear QR code as we are connected!
 
+    // Back up the session directory to the persistent disk immediately
+    backupProfile();
+
+    // Schedule periodic backups every 10 minutes (600,000ms)
+    setInterval(backupProfile, 600000);
+
     if (WEBHOOK_URL) {
       client.onMessage(async (message) => {
         try {
@@ -435,3 +495,15 @@ create(clientConfig)
     console.error("❌ Fatal: Failed to initialize WhatsApp client:", err);
     // Don't kill process so the HTTP server stays alive and Render doesn't restart the container
   });
+
+// Clean shutdown backup handlers
+process.on('SIGINT', () => {
+  console.log("Received SIGINT, backing up Chrome profile...");
+  backupProfile();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  console.log("Received SIGTERM, backing up Chrome profile...");
+  backupProfile();
+  process.exit(0);
+});
