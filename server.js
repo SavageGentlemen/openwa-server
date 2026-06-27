@@ -84,7 +84,7 @@ const patchPuppeteerConfig = () => {
   if (fs.existsSync(targetPath)) {
     let content = fs.readFileSync(targetPath, 'utf8');
     const originalUA = "exports.useragent = (0, exports.createUserAgent)('2.2147.16');";
-    const patchedUA = "exports.useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36';";
+    const patchedUA = "exports.useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';";
     if (content.includes(originalUA)) {
       content = content.replace(originalUA, patchedUA);
       console.log("🩹 Patched useragent in puppeteer.config.js successfully!");
@@ -329,6 +329,10 @@ ev.on('qr.**', (data) => {
 // Configure the wa-automate client
 const clientConfig = {
   sessionId: "session",
+  useStealth: true,
+  customUserAgent: process.platform === 'win32'
+    ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    : "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
   headless: true,
   qrTimeout: 0,           // Never timeout waiting for QR scan
   authTimeout: 0,          // Never timeout waiting for auth
