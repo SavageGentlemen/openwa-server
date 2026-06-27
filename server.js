@@ -384,6 +384,7 @@ const clientConfig = {
   throwErrorOnTosBlock: false,
   qrPopup: false,
   logging: [{ type: "console" }],
+  dumpio: true,
   qrLogSkip: true,          // We serve it via the web page, so we can skip logging large text QR to console if desired
   chromiumArgs: [
     "--no-sandbox",
