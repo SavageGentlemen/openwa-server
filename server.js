@@ -16,7 +16,7 @@ const localUserDataDir = "/app/_IGNORE_session";
 const persistentTarball = "/app/session/session.tar.gz";
 
 // Nuke any stale/broken state to start completely fresh
-const nukeSession = true;
+const nukeSession = false;
 if (nukeSession) {
   try {
     if (fs.existsSync(persistentTarball)) {
@@ -88,6 +88,9 @@ try {
 
   // Restore session profile from persistent storage if it exists
   restoreProfile();
+
+  // Run a 15-second background backup interval to capture the session immediately after scanning
+  setInterval(backupProfile, 15000);
 
   // Clean up any stale Chrome locks locally (just in case)
   const deleteSingletonLock = (dir) => {
@@ -466,9 +469,17 @@ const clientConfig = {
     "--disable-software-rasterizer",
     "--disable-extensions",
     "--no-default-browser-check",
-    "--js-flags=--max-old-space-size=256",
+    "--js-flags=--max-old-space-size=180",
     "--no-first-run",
-    "--no-zygote"
+    "--no-zygote",
+    "--single-process",
+    "--mute-audio",
+    "--disable-webgl",
+    "--disable-3d-apis",
+    "--disable-accelerated-2d-canvas",
+    "--disable-accelerated-jpeg-decoding",
+    "--disable-accelerated-mjpeg-decoding",
+    "--disable-accelerated-video-decode"
   ]
 };
 
