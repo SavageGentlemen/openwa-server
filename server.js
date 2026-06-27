@@ -471,15 +471,7 @@ const clientConfig = {
     "--no-default-browser-check",
     "--js-flags=--max-old-space-size=180",
     "--no-first-run",
-    "--no-zygote",
-    "--single-process",
-    "--mute-audio",
-    "--disable-webgl",
-    "--disable-3d-apis",
-    "--disable-accelerated-2d-canvas",
-    "--disable-accelerated-jpeg-decoding",
-    "--disable-accelerated-mjpeg-decoding",
-    "--disable-accelerated-video-decode"
+    "--no-zygote"
   ]
 };
 
