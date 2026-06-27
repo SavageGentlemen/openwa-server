@@ -19,6 +19,30 @@ try {
   fs.writeFileSync(path.join(sessionDir, '.write-test'), 'ok', 'utf8');
   fs.unlinkSync(path.join(sessionDir, '.write-test'));
   console.log(`📁 Persistent session directory ${sessionDir} is fully writable!`);
+
+  // Clean up any stale Chrome locks in the persistent volume
+  const deleteSingletonLock = (dir) => {
+    const lockPath = path.join(dir, 'SingletonLock');
+    if (fs.existsSync(lockPath)) {
+      try {
+        fs.unlinkSync(lockPath);
+        console.log(`🧹 Removed stale Chrome SingletonLock at ${lockPath}`);
+      } catch (err) {
+        console.error(`⚠️ Failed to remove SingletonLock at ${lockPath}:`, err.message);
+      }
+    }
+    try {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        const fullPath = path.join(dir, file);
+        if (fs.statSync(fullPath).isDirectory()) {
+          deleteSingletonLock(fullPath);
+        }
+      }
+    } catch (err) {}
+  };
+  deleteSingletonLock(sessionDir);
+
 } catch (err) {
   console.error(`⚠️ Persistent session directory ${sessionDir} is NOT writable:`, err.message);
 }
