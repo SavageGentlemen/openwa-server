@@ -353,8 +353,7 @@ const clientConfig = {
     "--disable-gpu",
     "--js-flags=--max-old-space-size=256",
     "--no-first-run",
-    "--no-zygote",
-    "--single-process"
+    "--no-zygote"
   ]
 };
 
