@@ -446,9 +446,7 @@ const clientConfig = {
   sessionDataPath: "/app/session",
   userDataDir: "/app/_IGNORE_session",
   useStealth: true,
-  customUserAgent: process.platform === 'win32'
-    ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-    : "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  customUserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
   headless: true,
   qrTimeout: 0,           // Never timeout waiting for QR scan
   authTimeout: 0,          // Never timeout waiting for auth
@@ -472,7 +470,7 @@ const clientConfig = {
     "--disable-software-rasterizer",
     "--disable-extensions",
     "--no-default-browser-check",
-    "--js-flags=--max-old-space-size=180",
+    "--js-flags=--max-old-space-size=256",
     "--no-first-run",
     "--no-zygote"
   ]
