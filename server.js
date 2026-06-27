@@ -61,12 +61,15 @@ const backupProfile = () => {
         fs.mkdirSync(tarballDir, { recursive: true });
       }
       const { execSync } = require('child_process');
-      // Clean up stale lock files before compressing to prevent locks persisting in tarball
-      const lockPath = path.join(localUserDataDir, 'SingletonLock');
-      if (fs.existsSync(lockPath)) {
-        try {
-          fs.unlinkSync(lockPath);
-        } catch (e) {}
+      // Clean up stale lock and socket files before compressing to prevent locks persisting in tarball
+      const filesToDelete = ['SingletonLock', 'SingletonSocket', 'SingletonCookie'];
+      for (const f of filesToDelete) {
+        const fp = path.join(localUserDataDir, f);
+        if (fs.existsSync(fp)) {
+          try {
+            fs.unlinkSync(fp);
+          } catch (e) {}
+        }
       }
       execSync(`tar -czf ${persistentTarball} ${localUserDataDir}`);
       console.log("✅ Chrome profile backed up successfully!");
@@ -540,4 +543,4 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Trigger redeploy: 2026-06-27T19:32:00Z
+// Trigger redeploy: 2026-06-27T20:20:00Z
