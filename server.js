@@ -16,7 +16,7 @@ const localUserDataDir = "/app/_IGNORE_session";
 const persistentTarball = "/app/session/session.tar.gz";
 
 // Nuke any stale/broken state to start completely fresh
-const nukeSession = true;
+const nukeSession = false;
 if (nukeSession) {
   try {
     if (fs.existsSync(persistentTarball)) {
