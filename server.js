@@ -96,14 +96,17 @@ try {
   setInterval(backupProfile, 15000);
 
   // Clean up any stale Chrome locks locally (just in case)
-  const deleteSingletonLock = (dir) => {
-    const lockPath = path.join(dir, 'SingletonLock');
-    if (fs.existsSync(lockPath)) {
-      try {
-        fs.unlinkSync(lockPath);
-        console.log(`🧹 Removed stale Chrome SingletonLock at ${lockPath}`);
-      } catch (err) {
-        console.error(`⚠️ Failed to remove SingletonLock at ${lockPath}:`, err.message);
+  const deleteSingletonFiles = (dir) => {
+    const filesToDelete = ['SingletonLock', 'SingletonSocket', 'SingletonCookie'];
+    for (const f of filesToDelete) {
+      const fp = path.join(dir, f);
+      if (fs.existsSync(fp)) {
+        try {
+          fs.unlinkSync(fp);
+          console.log(`🧹 Removed stale Chrome file at ${fp}`);
+        } catch (err) {
+          console.error(`⚠️ Failed to remove stale Chrome file at ${fp}:`, err.message);
+        }
       }
     }
     try {
@@ -111,13 +114,13 @@ try {
       for (const file of files) {
         const fullPath = path.join(dir, file);
         if (fs.statSync(fullPath).isDirectory()) {
-          deleteSingletonLock(fullPath);
+          deleteSingletonFiles(fullPath);
         }
       }
     } catch (err) {}
   };
   if (fs.existsSync(localUserDataDir)) {
-    deleteSingletonLock(localUserDataDir);
+    deleteSingletonFiles(localUserDataDir);
   }
 
 } catch (err) {
@@ -541,4 +544,4 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Trigger redeploy: 2026-06-27T20:20:00Z
+// Trigger redeploy: 2026-06-27T20:34:00Z
