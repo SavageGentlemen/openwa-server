@@ -15,6 +15,23 @@ const sessionDir = "/app/session";
 const localUserDataDir = "/app/_IGNORE_session";
 const persistentTarball = "/app/session/session.tar.gz";
 
+// Nuke any stale/broken state to start completely fresh
+const nukeSession = true;
+if (nukeSession) {
+  try {
+    if (fs.existsSync(persistentTarball)) {
+      fs.unlinkSync(persistentTarball);
+      console.log("🧹 Nuked persistent tarball");
+    }
+    if (fs.existsSync(localUserDataDir)) {
+      fs.rmSync(localUserDataDir, { recursive: true, force: true });
+      console.log("🧹 Nuked local user data dir");
+    }
+  } catch (err) {
+    console.error("Nuke failed:", err.message);
+  }
+}
+
 // Restore Chrome profile from persistent storage on startup
 const restoreProfile = () => {
   if (fs.existsSync(persistentTarball)) {
