@@ -507,3 +507,5 @@ process.on('SIGTERM', () => {
   backupProfile();
   process.exit(0);
 });
+
+// Trigger redeploy: 2026-06-27T19:32:00Z
