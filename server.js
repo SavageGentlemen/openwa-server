@@ -339,7 +339,7 @@ const clientConfig = {
   timeout: 120000,         // Increase Puppeteer timeout to 120s for slow containers
   pageTimeout: 120000,     // Increase page load timeout to 120s
   cacheEnabled: true,      // Enable caching to reduce CPU/compilation spikes
-  blockAssets: true,       // Block images, styles, and fonts to save memory
+  blockAssets: false,      // Disabled resource blocking to prevent pairing failures
   useChrome: true,         // Use Google Chrome
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (process.platform === 'win32' ? undefined : "/usr/bin/google-chrome-stable"),
   killProcessOnBrowserClose: true,
