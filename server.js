@@ -10,6 +10,19 @@ console.log("Starting OpenWA WhatsApp Server...");
 console.log(`Port: ${PORT}`);
 console.log(`Webhook: ${WEBHOOK_URL}`);
 
+// Verify persistent session directory write permissions
+const sessionDir = "/app/session";
+try {
+  if (!fs.existsSync(sessionDir)) {
+    fs.mkdirSync(sessionDir, { recursive: true });
+  }
+  fs.writeFileSync(path.join(sessionDir, '.write-test'), 'ok', 'utf8');
+  fs.unlinkSync(path.join(sessionDir, '.write-test'));
+  console.log(`📁 Persistent session directory ${sessionDir} is fully writable!`);
+} catch (err) {
+  console.error(`⚠️ Persistent session directory ${sessionDir} is NOT writable:`, err.message);
+}
+
 // 1. Monkey-patch the node_modules to bypass the deprecated window.Debug check
 // This fixes the infinite 30s timeout issue in wa-automate caused by WhatsApp Web updates
 const patchInitializer = () => {
