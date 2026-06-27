@@ -338,7 +338,8 @@ const clientConfig = {
   authTimeout: 0,          // Never timeout waiting for auth
   timeout: 120000,         // Increase Puppeteer timeout to 120s for slow containers
   pageTimeout: 120000,     // Increase page load timeout to 120s
-  cacheEnabled: false,
+  cacheEnabled: true,      // Enable caching to reduce CPU/compilation spikes
+  blockAssets: true,       // Block images, styles, and fonts to save memory
   useChrome: true,         // Use Google Chrome
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (process.platform === 'win32' ? undefined : "/usr/bin/google-chrome-stable"),
   killProcessOnBrowserClose: true,
@@ -351,6 +352,9 @@ const clientConfig = {
     "--disable-setuid-sandbox",
     "--disable-dev-shm-usage",
     "--disable-gpu",
+    "--disable-software-rasterizer",
+    "--disable-extensions",
+    "--no-default-browser-check",
     "--js-flags=--max-old-space-size=256",
     "--no-first-run",
     "--no-zygote"
