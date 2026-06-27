@@ -16,7 +16,7 @@ const localUserDataDir = "/app/_IGNORE_session";
 const persistentTarball = "/app/session/session.tar.gz";
 
 // Nuke any stale/broken state to start completely fresh
-const nukeSession = false;
+const nukeSession = true;
 if (nukeSession) {
   try {
     if (fs.existsSync(persistentTarball)) {
@@ -513,7 +513,19 @@ create(clientConfig)
   })
   .catch((err) => {
     console.error("❌ Fatal: Failed to initialize WhatsApp client:", err);
-    // Don't kill process so the HTTP server stays alive and Render doesn't restart the container
+    // Self-healing: if Chrome fails to start, nuke the tarball so the next restart begins completely clean
+    try {
+      if (fs.existsSync(persistentTarball)) {
+        fs.unlinkSync(persistentTarball);
+        console.log("🧹 Automatically nuked persistent tarball due to launch failure");
+      }
+      if (fs.existsSync(localUserDataDir)) {
+        fs.rmSync(localUserDataDir, { recursive: true, force: true });
+        console.log("🧹 Automatically nuked local user data dir due to launch failure");
+      }
+    } catch (e) {
+      console.error("Self-healing cleanup failed:", e.message);
+    }
   });
 
 // Clean shutdown backup handlers
